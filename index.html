@@ -118,6 +118,24 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--ink);box
 .ifields{margin-top:24px}
 .ifields.off{opacity:.35;pointer-events:none}
 .ifields .row{margin-bottom:16px}
+.drop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border:1px dashed #b9bfbb;padding:22px 16px;text-align:center;cursor:pointer;background:#fafbfa;transition:all .15s}
+.drop:hover,.drop.over{border-color:var(--ink);background:var(--tint)}
+.drop input{display:none}
+.drop b{font-size:14px}.drop span{font-size:12.5px;color:var(--sub)}
+.flist{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.fitem{display:flex;align-items:center;gap:10px;border:1px solid var(--line);padding:8px 12px;font-size:13.5px}
+.fitem .ext{font-family:Inter;font-weight:800;font-size:10.5px;letter-spacing:.06em;color:#fff;background:var(--dk2);padding:2px 6px;min-width:42px;text-align:center}
+.fitem .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fitem .sz{font-family:Inter;font-size:12px;color:var(--mute)}
+.fitem button{border:none;background:none;color:var(--mute);cursor:pointer;font-size:13px}
+.atts{display:flex;flex-direction:column;gap:6px}
+.atts .thumbs{display:flex;gap:6px;flex-wrap:wrap}
+.atts .thumbs a{display:block;width:84px;height:64px;border:1px solid var(--line);overflow:hidden;background:var(--tint)}
+.atts .thumbs img{width:100%;height:100%;object-fit:cover;display:block}
+.atts a.fl{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink);text-decoration:none;border:1px solid var(--line);padding:6px 10px}
+.atts a.fl:hover{border-color:var(--ink)}
+.atts a.fl .ext{font-family:Inter;font-weight:800;font-size:10px;letter-spacing:.06em;color:var(--g-ink)}
+.atts a.fl .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pick-hint{font-size:13px;color:var(--g-ink);font-weight:700;margin-top:14px}
 .actions{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-top:6px}
 .actions .msg{flex:1}
@@ -308,6 +326,10 @@ body.mode-cover .nav,body.mode-cover .view,body.mode-cover .banner{display:none!
         <form id="ideaForm" class="ifields off">
           <div class="row"><label class="l">아이디어 한 줄 요약<span class="req">*</span></label><input type="text" id="iTitle" maxlength="80"></div>
           <div class="row"><label class="l">내용 및 기대 효과<span class="req">*</span></label><textarea id="iDetail" maxlength="1200"></textarea></div>
+          <div class="row"><label class="l">첨부파일 <span style="font-weight:500;color:var(--sub)">(선택)</span></label>
+            <label class="drop" id="drop"><input type="file" id="iFiles" multiple accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.hwp,.hwpx">
+              <b>파일을 끌어다 놓거나 클릭해서 선택</b><span>이미지 · PDF · PPT · Word · Excel · 한글 / 최대 3개, 파일당 10MB</span></label>
+            <div class="flist" id="fList"></div></div>
           <div class="actions">
             <span class="msg" id="iMsg"></span>
             
@@ -399,8 +421,8 @@ const hash=s=>{let h=0;for(const ch of s)h=(h*31+ch.charCodeAt(0))|0;return Math
 
 let db=null,user=null,me=null,isOwner=false,canWrite=true,sb=null,refreshTimer=null;
 /* ====== Supabase 설정: 프로젝트 Settings → API 에서 복사 ====== */
-const SUPABASE_URL="https://dyyjjpyvrngxxivdtfbk.supabase.co";
-const SUPABASE_ANON_KEY="sb_publishable_A_BaZTCMh80GYa5E5Ogbvw_oZCyKFa5";
+const SUPABASE_URL="https://YOUR_PROJECT.supabase.co";
+const SUPABASE_ANON_KEY="YOUR_ANON_KEY";
 const ideas=new Map(),msgs=new Map(),likes=new Map();
 const names={};
 let pickCat=null,catFilter="all",mType="review",mFilter="all",showN=12,openBub=null;
@@ -495,7 +517,7 @@ function render(){
   $("iCards").innerHTML=l.length?l.slice(0,showN).map(i=>{const k=keyOf(i);return `<div class="card">
     <div class="top"><span class="en cl">${esc(catOf(i.cat).en)}</span><span class="ck">${esc(catName(i.cat))}</span></div>
     <h4>${esc(i.title)}</h4>
-    <div class="body">${esc(i.detail)}${i.effect?`<span class="k">기대 효과</span>${esc(i.effect)}`:""}</div>
+    <div class="body">${esc(i.detail)}${i.effect?`<span class="k">기대 효과</span>${esc(i.effect)}`:""}</div>${attHtml(i.files)}
     <div class="meta"><span>${esc(who(i))} · ${fmt(i.at)}</span><span class="sp"></span>
       ${(i.author===me||isOwner)?`<button class="del" data-t="i" data-a="${esc(i.author)}" data-id="${esc(i.id)}">삭제</button>`:""}
 </div>${rxBar(lc,mine,k,"bar")}</div>`}).join("")
@@ -538,6 +560,44 @@ async function resolveNames(){}
 function errText(e){console.error(e);return"저장하지 못했어요. 잠시 후 다시 시도해 주세요."}
 function ready(msgEl){if(!sb||!me){msgEl&&(msgEl.className="msg err",msgEl.textContent="보드에 연결되지 않았어요. 새로고침 후 다시 시도해 주세요.");return false}return true}
 
+/* ---------- attachments ---------- */
+const BUCKET="idea-files",MAX_FILES=3,MAX_MB=10;
+const MIME={jpg:"image/jpeg",jpeg:"image/jpeg",png:"image/png",gif:"image/gif",webp:"image/webp",pdf:"application/pdf",
+  ppt:"application/vnd.ms-powerpoint",pptx:"application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  doc:"application/msword",docx:"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  xls:"application/vnd.ms-excel",xlsx:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  hwp:"application/x-hwp",hwpx:"application/vnd.hancom.hwpx"};
+const extOf=n=>(n.split(".").pop()||"").toLowerCase();
+const fsz=b=>b>=1048576?(b/1048576).toFixed(1)+"MB":Math.max(1,Math.round(b/1024))+"KB";
+let pickedFiles=[];
+function addFiles(list){
+  const msg=$("iMsg");msg.className="msg";msg.textContent="";const errs=[];
+  [...list].forEach(f=>{
+    if(!MIME[extOf(f.name)])errs.push(`${f.name}: 지원하지 않는 형식`);
+    else if(f.size>MAX_MB*1048576)errs.push(`${f.name}: ${MAX_MB}MB 초과`);
+    else if(pickedFiles.length>=MAX_FILES)errs.push(`최대 ${MAX_FILES}개까지 첨부할 수 있어요`);
+    else if(!pickedFiles.some(p=>p.name===f.name&&p.size===f.size))pickedFiles.push(f);
+  });
+  if(errs.length){msg.className="msg err";msg.textContent=[...new Set(errs)].join(" · ")}
+  renderFiles();
+}
+function renderFiles(){
+  $("fList").innerHTML=pickedFiles.map((f,i)=>`<div class="fitem"><span class="ext">${esc(extOf(f.name).toUpperCase())}</span><span class="nm">${esc(f.name)}</span><span class="sz">${fsz(f.size)}</span><button type="button" data-i="${i}">✕</button></div>`).join("");
+  $("fList").querySelectorAll("button").forEach(b=>b.onclick=()=>{pickedFiles.splice(+b.dataset.i,1);renderFiles()});
+  $("drop").style.display=pickedFiles.length>=MAX_FILES?"none":"";
+}
+$("iFiles").onchange=e=>{addFiles(e.target.files);e.target.value=""};
+["dragenter","dragover"].forEach(ev=>$("drop").addEventListener(ev,e=>{e.preventDefault();$("drop").classList.add("over")}));
+["dragleave","drop"].forEach(ev=>$("drop").addEventListener(ev,e=>{e.preventDefault();$("drop").classList.remove("over")}));
+$("drop").addEventListener("drop",e=>addFiles(e.dataTransfer.files));
+const pubUrl=(path,dl)=>sb?sb.storage.from(BUCKET).getPublicUrl(path,dl?{download:dl}:undefined).data.publicUrl:"#";
+function attHtml(files){
+  if(!Array.isArray(files)||!files.length)return"";
+  const imgs=files.filter(f=>/^image\//.test(f.type||"")),docs=files.filter(f=>!/^image\//.test(f.type||""));
+  return `<div class="atts">${imgs.length?`<div class="thumbs">${imgs.map(f=>`<a href="${esc(pubUrl(f.path))}" target="_blank" rel="noopener" title="${esc(f.name)}"><img src="${esc(pubUrl(f.path))}" alt="${esc(f.name)}" loading="lazy"></a>`).join("")}</div>`:""}
+    ${docs.map(f=>`<a class="fl" href="${esc(pubUrl(f.path,f.name))}" target="_blank" rel="noopener"><span class="ext">${esc(extOf(f.name).toUpperCase())}</span><span class="nm">${esc(f.name)}</span><span class="sz" style="font-size:11.5px;color:var(--mute)">${fsz(f.size||0)}</span></a>`).join("")}</div>`;
+}
+
 $("ideaForm").onsubmit=async e=>{
   e.preventDefault();const msg=$("iMsg");msg.className="msg";if(!ready(msg))return;
   const title=$("iTitle").value.trim(),detail=$("iDetail").value.trim();
@@ -545,10 +605,20 @@ $("ideaForm").onsubmit=async e=>{
   const pf=getProfile();if(!pf){msg.className="msg err";msg.textContent="‘01 내 정보’에서 조와 이름을 입력해 주세요.";return}
   if(!title||!detail){msg.className="msg err";msg.textContent="한 줄 요약과 내용 및 기대 효과를 채워 주세요.";$("iTitle").classList.toggle("need",!title);$("iDetail").classList.toggle("need",!detail);return}
   $("iTitle").classList.remove("need");$("iDetail").classList.remove("need");
-  $("iSubmit").disabled=true;msg.textContent="올리는 중…";
-  const {error}=await sb.from("ideas").insert({team:pf.team,name:pf.name,cat:pickCat,title,detail,anon:false});
-  if(error){msg.className="msg err";msg.textContent=errText(error)}
-  else{$("iTitle").value=$("iDetail").value="";doneMsg(msg,"아이디어를 제안했어요. 고마워요!");refresh()}
+  $("iSubmit").disabled=true;
+  const files=[];
+  for(let n=0;n<pickedFiles.length;n++){
+    const f=pickedFiles[n],ext=extOf(f.name),path=`${me}/${Date.now().toString(36)}-${Math.random().toString(36).slice(2,8)}.${ext}`;
+    msg.className="msg";msg.textContent=`파일 올리는 중… (${n+1}/${pickedFiles.length})`;
+    const up=await sb.storage.from(BUCKET).upload(path,f,{contentType:MIME[ext],upsert:false});
+    if(up.error){msg.className="msg err";msg.textContent=`${f.name} 업로드 실패: ${up.error.message}`;
+      if(files.length)await sb.storage.from(BUCKET).remove(files.map(x=>x.path));$("iSubmit").disabled=false;return}
+    files.push({name:f.name,path,size:f.size,type:MIME[ext]});
+  }
+  msg.textContent="올리는 중…";
+  const {error}=await sb.from("ideas").insert({team:pf.team,name:pf.name,cat:pickCat,title,detail,anon:false,files});
+  if(error){msg.className="msg err";msg.textContent=errText(error);if(files.length)await sb.storage.from(BUCKET).remove(files.map(x=>x.path))}
+  else{$("iTitle").value=$("iDetail").value="";pickedFiles=[];renderFiles();doneMsg(msg,"아이디어를 제안했어요. 고마워요!");refresh()}
   $("iSubmit").disabled=false;
 };
 
@@ -583,6 +653,7 @@ function askDelete(b){
   setTimeout(()=>{if(pendingDel===b){b.textContent="삭제";pendingDel=null}},3500);
 }
 async function doDelete(t,a,id){
+  if(t==="i"){const it=allIdeas().find(x=>x.id===id);if(it&&Array.isArray(it.files)&&it.files.length)await sb.storage.from(BUCKET).remove(it.files.map(f=>f.path));}
   const {error}=await sb.from(t==="i"?"ideas":"messages").delete().eq("id",id);
   if(error)showBanner(errText(error));refresh();
 }
@@ -593,7 +664,7 @@ $("exportBtn").onclick=()=>{
   let o=`# NEO 앰배서더 광고 아이디어 제안\n- 총 ${I.length}건 · 참여 ${new Set(I.map(i=>i.author)).size}명 · ${new Date().toLocaleDateString("ko-KR")} 기준 · 분류별 반응 많은 순\n`;
   CATS.forEach(c=>{const l=I.filter(i=>i.cat===c.k).sort((a,b)=>rxTotal(lc,keyOf(b))-rxTotal(lc,keyOf(a)));if(!l.length)return;
     o+=`\n## ${catName(c.k)} (${l.length}건)\n`;
-    l.forEach((i,n)=>{o+=`\n${n+1}. ${i.title}  [반응 ${rxTotal(lc,keyOf(i))}]\n   - 내용: ${i.detail.replace(/\n/g," ")}\n`;if(i.effect)o+=`   - 기대 효과: ${i.effect.replace(/\n/g," ")}\n`})});
+    l.forEach((i,n)=>{o+=`\n${n+1}. ${i.title}  [반응 ${rxTotal(lc,keyOf(i))}]\n   - 내용: ${i.detail.replace(/\n/g," ")}\n`;if(Array.isArray(i.files)&&i.files.length)o+=i.files.map(f=>`   - 첨부: ${f.name} ${pubUrl(f.path)}\n`).join("");if(i.effect)o+=`   - 기대 효과: ${i.effect.replace(/\n/g," ")}\n`})});
   if(M.length){o+=`\n\n# NEO 활동 한마디 (${M.length}건)\n`;
     o+=M.slice().sort((a,b)=>(a.at||0)-(b.at||0)).map(m=>`- ${m.text}`).join("\n")+"\n"}
   $("exportText").value=o;$("copyMsg").textContent="";$("modal").classList.add("show");
@@ -616,7 +687,7 @@ async function load(){
     sb.from("reactions").select("user_id,target_key,emoji")]);
   const err=I.error||M.error||R.error;if(err){showBanner("데이터를 불러오지 못했어요: "+err.message);return}
   ideas.clear();msgs.clear();likes.clear();
-  I.data.forEach(r=>{if(!ideas.has(r.author))ideas.set(r.author,{items:[]});ideas.get(r.author).items.push({id:r.id,team:r.team,name:r.name,cat:r.cat,title:r.title,detail:r.detail,anon:r.anon,at:Date.parse(r.created_at)})});
+  I.data.forEach(r=>{if(!ideas.has(r.author))ideas.set(r.author,{items:[]});ideas.get(r.author).items.push({id:r.id,team:r.team,name:r.name,cat:r.cat,title:r.title,detail:r.detail,files:r.files||[],anon:r.anon,at:Date.parse(r.created_at)})});
   M.data.forEach(r=>{if(!msgs.has(r.author))msgs.set(r.author,{items:[]});msgs.get(r.author).items.push({id:r.id,team:r.team,name:r.name,text:r.text,anon:r.anon,at:Date.parse(r.created_at)})});
   R.data.forEach(r=>{if(!likes.has(r.user_id))likes.set(r.user_id,{posts:{}});likes.get(r.user_id).posts[r.target_key+"|"+r.emoji]=true});
   loaded.i=loaded.m=loaded.l=true;showBanner("");render();
