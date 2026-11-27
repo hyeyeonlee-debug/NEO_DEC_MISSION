@@ -160,7 +160,15 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--ink);box
 
 /* ================= BOARD ================= */
 .board.on{display:flex;flex-direction:column;height:calc(100vh - var(--navh,65px));height:calc(100dvh - var(--navh,65px))}
+.bpanes{flex:1;min-height:0;display:flex}
 .bpane{display:none;flex:1;min-height:0;overflow:auto}
+.board.split #bp-ideas{flex:1.55;border-right:1px solid var(--line)}
+.board.split #bp-msgs{flex:1}
+.board.split .cards{grid-template-columns:repeat(auto-fill,minmax(280px,1fr))}
+.board.split .stage{padding:28px 18px 32px;gap:14px 10px}
+.board.split .bub{max-width:260px;font-size:14px}
+.board.split .dk-head{padding:14px 18px}
+@media(max-width:860px){.bpanes{flex-direction:column}.board.split #bp-ideas{flex:1.2;border-right:none;border-bottom:3px solid var(--g)}.board.split #bp-msgs{flex:1}}
 .bpane.on{display:block}
 .bp-in{padding:0 28px 36px}
 .btool{position:sticky;top:0;z-index:2;background:#fff;display:flex;align-items:center;gap:20px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding:0 28px;margin:0 -28px 24px}
@@ -234,6 +242,17 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--ink);box
 @media (prefers-reduced-motion:reduce){.bub{animation:none}}
 .bbar{display:flex;background:var(--dk);border-top:1px solid rgba(255,255,255,.1);padding-bottom:env(safe-area-inset-bottom)}
 .bb{flex:1;border:none;background:none;color:rgba(255,255,255,.55);padding:16px 10px;cursor:pointer;font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:10px;position:relative}
+.bb .sm{display:none}
+.msgbtn{color:#7ff0b0!important}
+.msgbtn .dotm{width:8px;height:8px;border-radius:50%;background:var(--g);box-shadow:0 0 0 0 rgba(3,199,90,.6);animation:ping 1.8s infinite}
+@keyframes ping{0%{box-shadow:0 0 0 0 rgba(3,199,90,.6)}70%{box-shadow:0 0 0 8px rgba(3,199,90,0)}100%{box-shadow:0 0 0 0 rgba(3,199,90,0)}}
+.msgbtn.on{color:#fff!important}
+.arrive{display:none;position:absolute;bottom:calc(100% + 12px);left:50%;transform:translateX(-50%);background:var(--g);color:#02100a;font-size:13px;font-weight:800;padding:8px 14px;border-radius:18px 18px 18px 4px;white-space:nowrap;box-shadow:0 8px 24px rgba(0,0,0,.25);animation:bob 2.6s ease-in-out infinite;--y:-5px;pointer-events:none}
+.arrive.show{display:block}
+.bbar{position:relative;z-index:3}
+@media(max-width:860px){.arrive{left:auto;right:6px;transform:none;border-radius:18px 18px 4px 18px}.bb .lg{display:none}.bb .sm{display:inline}.bb{font-size:14px;gap:6px;padding:14px 6px}
+  .btool{gap:10px;padding:0 16px;margin:0 -16px 16px}.ftabs{flex-wrap:nowrap;overflow-x:auto;gap:16px;width:100%}.ftab{white-space:nowrap}
+  .btool .sp{display:none}.btool select,.btool .btn{margin-bottom:10px}.bp-in{padding:0 16px 24px}}
 .bb+.bb{border-left:1px solid rgba(255,255,255,.1)}
 .bb .n{font-family:Inter;font-size:12px;color:rgba(255,255,255,.4)}
 .bb.on{color:#fff;background:rgba(255,255,255,.04)}
@@ -353,6 +372,7 @@ body.mode-cover .nav,body.mode-cover .view,body.mode-cover .banner{display:none!
 
 <!-- ================= BOARD ================= -->
 <div class="view board" id="v-board">
+  <div class="bpanes">
   <div class="bpane" id="bp-ideas">
     <div class="bp-in">
       <div class="btool">
@@ -369,9 +389,11 @@ body.mode-cover .nav,body.mode-cover .view,body.mode-cover .banner{display:none!
     <div class="dk-head"><span class="en">NEO Messages</span><span>말풍선을 누르면 작성자가 보이고 반응을 남길 수 있어요</span></div>
     <div class="stage" id="stage"></div>
   </div>
+  </div>
   <div class="bbar">
-    <button class="bb" data-p="ideas">광고 아이디어<span class="n" id="cntI">0</span></button>
-    <button class="bb" data-p="msgs">NEO 활동 한마디<span class="n" id="cntM">0</span></button>
+    <button class="bb" data-p="both"><span class="lg">함께 보기</span><span class="sm">전체</span><span class="n" id="cntB">0</span></button>
+    <button class="bb" data-p="ideas"><span class="lg">광고 아이디어</span><span class="sm">아이디어</span><span class="n" id="cntI">0</span></button>
+    <button class="bb msgbtn" data-p="msgs"><i class="dotm"></i><span class="lg">NEO 활동 한마디</span><span class="sm">한마디</span><span class="n" id="cntM">0</span><span class="arrive" id="arrive"></span></button>
   </div>
 </div>
 
@@ -421,8 +443,8 @@ const hash=s=>{let h=0;for(const ch of s)h=(h*31+ch.charCodeAt(0))|0;return Math
 
 let db=null,user=null,me=null,isOwner=false,canWrite=true,sb=null,refreshTimer=null;
 /* ====== Supabase 설정: 프로젝트 Settings → API 에서 복사 ====== */
-const SUPABASE_URL="https://dyyjjpyvrngxxivdtfbk.supabase.co";
-const SUPABASE_ANON_KEY="sb_publishable_A_BaZTCMh80GYa5E5Ogbvw_oZCyKFa5";
+const SUPABASE_URL="https://YOUR_PROJECT.supabase.co";
+const SUPABASE_ANON_KEY="YOUR_ANON_KEY";
 const ideas=new Map(),msgs=new Map(),likes=new Map();
 const names={};
 let pickCat=null,catFilter="all",mType="review",mFilter="all",showN=12,openBub=null;
@@ -432,7 +454,7 @@ const loaded={i:false,m:false,l:false};
 /* ---------- main views ---------- */
 function showView(v){if(v!=="write"&&v!=="board")v="intro";document.body.classList.toggle("mode-cover",v==="intro");window.scrollTo(0,0);
   document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("on",b.dataset.v===v));
-  document.querySelectorAll(".view").forEach(x=>x.classList.toggle("on",x.id==="v-"+v));document.body.classList.toggle("mode-board",v==="board");if(typeof setNavH==="function")setNavH();}
+  document.querySelectorAll(".view").forEach(x=>x.classList.toggle("on",x.id==="v-"+v));document.body.classList.toggle("mode-board",v==="board");if(typeof setNavH==="function")setNavH();try{updArrive()}catch(e){}}
 function goView(v,scroll){if(location.hash!=="#"+v)location.hash=v;showView(v);}
 document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>goView(b.dataset.v));
 $("toCover").onclick=()=>goView("intro");
@@ -442,12 +464,23 @@ showView(location.hash.slice(1));
 function doneMsg(el,t){el.className="msg";el.innerHTML=esc(t)+' <button type="button" class="gobtn">보드에서 보기 →</button>';el.querySelector(".gobtn").onclick=()=>{showPane(el.id==="mMsg"?"msgs":"ideas");goView("board",true)};}
 
 
-let bPane="ideas";
-function showPane(p){bPane=p==="msgs"?"msgs":"ideas";
+let bPane="both";
+function showPane(p){bPane=["both","ideas","msgs"].includes(p)?p:"both";
+  $("v-board").classList.toggle("split",bPane==="both");
   document.querySelectorAll(".bb").forEach(b=>b.classList.toggle("on",b.dataset.p===bPane));
-  $("bp-ideas").classList.toggle("on",bPane==="ideas");$("bp-msgs").classList.toggle("on",bPane==="msgs");}
+  $("bp-ideas").classList.toggle("on",bPane!=="msgs");$("bp-msgs").classList.toggle("on",bPane!=="ideas");updArrive();}
+function seenGet(){try{return +localStorage.getItem("neo_seen_msgs")||0}catch(e){return 0}}
+function seenSet(n){try{localStorage.setItem("neo_seen_msgs",String(n))}catch(e){}}
+function updArrive(){
+  let total=0;try{total=allMsgs().length}catch(e){return}
+  const viewing=document.body.classList.contains("mode-board")&&bPane!=="ideas";
+  if(viewing&&loaded.m)seenSet(total);
+  const unseen=Math.max(0,total-seenGet()),el=$("arrive");if(!el)return;
+  const show=!viewing&&unseen>0;el.classList.toggle("show",show);
+  el.textContent=`💬 새 메시지 ${unseen}개 도착`;
+}
 document.querySelectorAll(".bb").forEach(b=>b.onclick=()=>showPane(b.dataset.p));
-showPane("ideas");
+showPane("both");
 function setNavH(){document.documentElement.style.setProperty("--navh",document.querySelector(".nav").offsetHeight+"px")}
 window.addEventListener("resize",setNavH);setNavH();
 
@@ -503,7 +536,7 @@ function getProfile(){const team=$("pTeam").value,name=$("pName").value.trim();
 function render(){
   if(me)prefillProfile();
   const lc=likeCounts(),mine=myLikes(),I=allIdeas(),M=allMsgs();
-  $("cntI").textContent=I.length;$("cntAll").textContent=I.length+M.length;$("cntM").textContent=M.length;
+  $("cntI").textContent=I.length;$("cntAll").textContent=I.length+M.length;$("cntM").textContent=M.length;$("cntB").textContent=I.length+M.length;try{updArrive()}catch(e){}
   // idea chips
   const cc={};I.forEach(i=>cc[i.cat]=(cc[i.cat]||0)+1);
   $("catChips").innerHTML=[{k:"all",n:"전체"},...CATS].map(c=>`<button class="ftab ${catFilter===c.k?"on":""}" data-k="${c.k}">${c.n}<span class="n">${c.k==="all"?I.length:(cc[c.k]||0)}</span></button>`).join("");
