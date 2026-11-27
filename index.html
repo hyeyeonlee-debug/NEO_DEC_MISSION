@@ -421,8 +421,8 @@ const hash=s=>{let h=0;for(const ch of s)h=(h*31+ch.charCodeAt(0))|0;return Math
 
 let db=null,user=null,me=null,isOwner=false,canWrite=true,sb=null,refreshTimer=null;
 /* ====== Supabase 설정: 프로젝트 Settings → API 에서 복사 ====== */
-const SUPABASE_URL="https://dyyjjpyvrngxxivdtfbk.supabase.co";
-const SUPABASE_ANON_KEY="sb_publishable_A_BaZTCMh80GYa5E5Ogbvw_oZCyKFa5";
+const SUPABASE_URL="https://YOUR_PROJECT.supabase.co";
+const SUPABASE_ANON_KEY="YOUR_ANON_KEY";
 const ideas=new Map(),msgs=new Map(),likes=new Map();
 const names={};
 let pickCat=null,catFilter="all",mType="review",mFilter="all",showN=12,openBub=null;
@@ -488,8 +488,8 @@ function rxBar(lc,mine,k,mode){const dis=(!me||!canWrite)?"disabled":"";
     if(mode==="sum"&&!c)return"";return mode==="sum"?`<span class="rs">${e}<b>${c}</b></span>`:`<button class="rx ${on?"on":""} ${c?"has":""}" data-k="${esc(k+"|"+e)}" ${dis} title="반응 남기기">${e}<b>${c||""}</b></button>`}).join("")+`</span>`}
 function who(i){const t=i.team?i.team+" ":"";if(i.anon)return t+(i.author===me?"나 (이름 숨김)":"익명");return t+(i.name||names[i.author]||"앰배서더")}
 /* ---------- profile (조/이름) ---------- */
-const TEAMS=Array.from({length:6},(_,k)=>(k+1)+"조");
-$("pTeam").innerHTML='<option value="">조 선택</option>'+TEAMS.map(t=>`<option>${t}</option>`).join("");
+const TEAMS=[...Array.from({length:6},(_,k)=>(k+1)+"조"),"NAVER"];
+$("pTeam").innerHTML='<option value="">조 선택</option>'+TEAMS.map(t=>`<option value="${t}">${t==="NAVER"?"NAVER (내부 멤버)":t}</option>`).join("");
 try{const sv=JSON.parse(localStorage.getItem("neo_profile")||"{}");if(sv.team)$("pTeam").value=sv.team;if(sv.name)$("pName").value=sv.name}catch(e){}
 function saveProfile(){try{localStorage.setItem("neo_profile",JSON.stringify({team:$("pTeam").value,name:$("pName").value.trim()}))}catch(e){}}
 $("pTeam").onchange=()=>{$("pTeam").classList.remove("need");saveProfile()};$("pName").oninput=()=>{$("pName").classList.remove("need");saveProfile()};
